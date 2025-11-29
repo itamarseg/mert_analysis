@@ -1,0 +1,10 @@
+audio_sr: 22050
+hop_length: 512
+bins_per_octave: 36
+octaves: 7
+
+# Your structure: data/raw/01/*.mp3 and .lab, data/raw/02/...
+audio_glob: "data/raw/*/*.mp3"
+lab_glob: "data/raw/*/*.lab"
+
+cache_dir: "data/processed"

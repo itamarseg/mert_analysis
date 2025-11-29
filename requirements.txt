@@ -1,0 +1,14 @@
+pyyaml
+numpy
+pandas
+torch
+torchaudio
+librosa
+transformers
+scipy
+scikit-learn
+tqdm
+google-cloud-bigquery
+pyarrow
+matplotlib
+seaborn
