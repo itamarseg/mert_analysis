@@ -141,4 +141,3 @@ For each song and layer:
    - Same quality: major chords grouped together
 4. Compute alignment percentages
 
-```
