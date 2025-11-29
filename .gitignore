@@ -29,4 +29,10 @@ data
 *.lab
 cache/
 
+# Credentials and secrets (DO NOT COMMIT!)
 mert-analysis.json
+*-credentials.json
+*-key.json
+*.pem
+.env
+.env.local

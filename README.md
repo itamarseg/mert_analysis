@@ -1,210 +1,144 @@
-# MERT Layer Analysis for Chord Recognition
+# MERT Embedding Analysis for Automatic Chord Recognition
 
-Analyzing MERT (Music Understanding Model) embeddings using Self-Similarity Matrices (SSMs) to understand which layers best capture harmonic structure and chord progressions.
+Analysis of MERT (Music Understanding Model) embeddings to evaluate their suitability for automatic chord recognition tasks. This project examines what harmonic and structural information MERT layers capture through Self-Similarity Matrix analysis and chord centroid nearest-neighbor analysis.
 
-## 🎯 Project Goal
+## 🎯 Research Questions
 
-Determine if MERT embeddings can succeed in automatic chord recognition by:
-1. Computing Self-Similarity Matrices from embeddings at different layers
-2. Comparing embedding SSMs to chord-label SSMs
-3. Identifying which layers best encode harmonic structure
-4. Visualizing results in a Looker Studio dashboard via BigQuery
+1. **Do MERT embeddings capture chord structure?**
+   - Are chord boundaries detectable in embedding space?
+   - Do same-chord occurrences have similar embeddings?
 
-## 📁 Project Structure
+2. **Which MERT layer best encodes harmonic information?**
+   - Layer-by-layer comparison across all 25 transformer layers
+   - Trade-offs between consistency and discrimination
+
+3. **Does MERT organize chords according to music theory?**
+   - Circle of fifths relationships
+   - Relative major-minor pairs
+   - Chord quality clustering (major vs minor)
+
+4. **Can MERT succeed at chord recognition without fine-tuning?**
+   - Quantitative evaluation of embedding-based chord discrimination
+
+## 📊 Key Findings
+
+### Self-Similarity Matrix Analysis
+
+**Weak chord discrimination across all layers:**
+- Pearson correlation with chord-label SSM: **r = 0.069** (very weak)
+- F1 score for chord boundary detection: **0.296** (poor)
+- All embeddings show 0.75-0.90 similarity regardless of chord (minimal separation)
+
+**Layer comparison:**
+- Layer L24: Best separation but still weak (similarity = 0.81 vs 0.93 in other layers)
+- No layer shows strong chord-specific clustering
+- Embeddings appear "smoothed" - capture general musical features, not fine-grained harmony
+
+### Chord Centroid Nearest Neighbor Analysis
+
+**Modest music theory alignment:**
+- **28% of top-3 neighbors** are circle-of-fifths related (Layer L1) ✅
+- **9% of top-3 neighbors** are relative major-minor pairs (Layer L19)
+- **19% same quality clustering** (majors with majors, minors with minors)
+
+**Critical limitation:**
+- Average nearest-neighbor similarity: **0.936-0.988** across all layers
+- Weak discrimination: all chords appear highly similar
+- Model knows relationships exist but cannot distinguish strongly
+
+### Overall Conclusion
+
+**MERT embeddings show limited suitability for chord recognition:**
+- ✅ Captures coarse harmonic relationships (circle of fifths, relative keys)
+- ❌ Cannot discriminate between chords effectively (all 0.9+ similar)
+- ❌ No layer specialization for harmonic structure
+- 💡 **Task-specific fine-tuning required** for practical chord recognition
+
+## 🏗️ Project Structure
 
 ```
 mert_analysis/
 ├── configs/
-│   └── data.yaml              # Data paths and processing config
+│   └── data.yaml                  # Data paths and audio parameters
+│
 ├── src/
 │   ├── io/
-│   │   ├── dataset.py         # Dataset utilities
-│   │   └── labs.py            # Chord label parsing
+│   │   ├── dataset.py            # Dataset utilities
+│   │   └── labs.py               # Chord label file parsing
+│   │
 │   ├── mert/
-│   │   └── featurize.py       # MERT embedding extraction
+│   │   └── featurize.py          # MERT embedding extraction
+│   │
 │   └── analysis/
-│       └── ssm.py             # SSM computation and metrics
+│       ├── ssm.py                # Self-similarity matrix computation
+│       ├── chord_aggregation.py  # Frame-to-chord aggregation
+│       └── chord_centroids.py    # Centroid & nearest neighbor analysis
+│
 ├── scripts/
 │   ├── dataset/
-│   │   ├── cache_mert_layers.py    # Extract MERT embeddings by layer
-│   │   └── align_labels.py         # Align chord labels to frames
+│   │   ├── cache_mert_layers.py  # Extract embeddings per layer
+│   │   └── align_labels.py       # Align chord labels to frames
+│   │
 │   ├── analysis/
-│   │   ├── compute_ssm_analysis.py # Single-layer SSM analysis
-│   │   ├── compare_mert_layers.py  # Multi-layer comparison
-│   │   ├── visualize_ssm.py        # Local visualization
-│   │   └── README.md               # Analysis pipeline docs
-│   └── export/
-│       └── export_to_bigquery.py   # BigQuery export for dashboard
-├── data/                      # Symlink to external drive
-│   ├── raw/                   # Audio files and chord labels
-│   └── processed/             # Cached features and embeddings
-└── requirements.txt
+│   │   ├── test_single_song.py           # Quick frame-level test
+│   │   ├── test_chord_aggregation.py     # Test chord-level aggregation
+│   │   ├── test_chord_centroids.py       # Test centroid analysis
+│   │   ├── test_layer_comparison.py      # Compare multiple layers
+│   │   └── compute_chord_centroids.py    # Full centroid analysis
+│   │
+│   ├── export/
+│   │   ├── export_chord_level_to_bigquery.py   # Export SSM analysis
+│   │   └── export_centroids_to_bigquery.py     # Export centroid analysis
+│   │
+│   └── run_chord_analysis.sh     # Main pipeline script
+│
+├── data/  (symlink to external drive)
+│   ├── raw/                      # Audio files (.mp3) and chord labels (.lab)
+│   └── processed/                # Cached features and MERT embeddings
+│
+└── requirements.txt              # Python dependencies
 ```
 
-## 🚀 Quick Start
+### Data Structure
 
-### 1. Setup Environment
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/mert_analysis.git
-cd mert_analysis
-
-# Install dependencies
-source .venv/bin/activate  # or: source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Data Setup
-
-Your data is on an external drive. Create a symlink:
-
-```bash
-# External drive should be mounted at /Volumes/SP PHD U3/
-ln -s "/Volumes/SP PHD U3/auto_chord_data/data" data
-```
-
-Data structure:
+Expected data organization:
 ```
 data/
 ├── raw/
 │   ├── 01/
-│   │   ├── 01 - Song.mp3
-│   │   └── 01 Song.lab
+│   │   ├── 01 - Song Title.mp3
+│   │   └── 01 Song Title.lab      # Chord annotations
 │   ├── 02/
 │   └── ...
 └── processed/
-    ├── manifest.csv          # Song metadata
-    ├── 1.npz                 # Features + chord labels
-    ├── 1_mert.npz            # MERT embeddings
-    └── mert_layers/          # Layer-wise embeddings
-        ├── L-1/              # Last layer
-        ├── L12/              # Layer 12
-        └── L18/              # Layer 18
+    ├── manifest.csv                # Song metadata
+    ├── {song_id}.npz              # Cached features + chord labels
+    ├── {song_id}_mert.npz         # MERT embeddings (single layer)
+    └── mert_layers/               # Layer-wise embeddings
+        ├── L0/, L1/, ..., L24/
+        └── Each contains {song_id}.npz
 ```
 
-### 3. Extract MERT Embeddings (if not cached)
+## 🔬 Methodology
 
-```bash
-# Extract embeddings for specific layers
-python scripts/dataset/cache_mert_layers.py \
-    --manifest data/processed/manifest.csv \
-    --layers -1 12 18 \
-    --out_root data/processed/mert_layers
+### 1. Self-Similarity Matrix Analysis
+
+For each song and layer:
+1. Extract MERT embeddings at ~75 Hz (12,000 frames for a 3-minute song)
+2. Aggregate frames to chord segments (reduce to ~100 segments)
+3. Compute embedding SSM: cosine similarity between all segment pairs
+4. Compute chord-label SSM: binary matrix (same chord = 1)
+5. Compare SSMs using Pearson correlation and F1 score
+
+### 2. Chord Centroid Analysis
+
+For each song and layer:
+1. Compute centroid (mean embedding) for each unique chord
+2. Find k-nearest neighbors in centroid space
+3. Check if neighbors align with music theory:
+   - Circle of fifths: C↔G, G↔D, D↔A, etc.
+   - Relative major-minor: C↔Am, G↔Em, etc.
+   - Same quality: major chords grouped together
+4. Compute alignment percentages
+
 ```
-
-### 4. Run Analysis
-
-```bash
-# Compare all MERT layers
-python scripts/analysis/compare_mert_layers.py \
-    --mert_layers_dir data/processed/mert_layers \
-    --output_dir data/analysis/layer_comparison
-
-# Visualize results locally
-python scripts/analysis/visualize_ssm.py \
-    --mode summary \
-    --results_csv data/analysis/layer_comparison/layer_comparison_results.csv
-
-# Visualize specific song SSMs
-python scripts/analysis/visualize_ssm.py \
-    --mode single \
-    --song_id 100 \
-    --data_dir data/processed
-```
-
-### 5. Export to BigQuery & Create Dashboard
-
-```bash
-# Export to BigQuery
-python scripts/export/export_to_bigquery.py \
-    --analysis_csv data/analysis/layer_comparison/layer_comparison_results.csv \
-    --project_id YOUR_GCP_PROJECT_ID \
-    --dataset_id mert_analysis \
-    --credentials path/to/service-account-key.json
-
-# Then create Looker Studio dashboard using the BigQuery table
-```
-
-## 📊 Key Metrics
-
-### Alignment Metrics (How well embeddings match chord structure)
-
-- **Pearson Correlation**: Linear correlation between embedding SSM and chord SSM
-  - Range: [-1, 1]
-  - Higher = better alignment with harmonic structure
-  
-- **F1 Score**: Binary classification of "same chord" vs "different chord"
-  - Range: [0, 1]
-  - Higher = better chord boundary detection
-
-### Structural Metrics (What patterns embeddings capture)
-
-- **Repetition Score**: Average off-diagonal similarity
-  - Captures verse-chorus repetition patterns
-  
-- **Local Homogeneity**: Average similarity within nearby frames
-  - Measures within-chord stability
-  
-- **Boundary Clarity**: Variance in similarity patterns
-  - Detects clear structural boundaries
-
-## 🎵 Analysis Questions
-
-1. **Which MERT layer best captures chord structure?**
-   - Look at Pearson correlation by layer
-   - Higher correlation = better harmonic encoding
-
-2. **Can MERT predict chord changes?**
-   - Look at F1 score for chord boundary detection
-   - High F1 + high Pearson = good for chord recognition
-
-3. **Does MERT capture song structure (verse/chorus)?**
-   - Look at repetition score
-   - High score = detects repeated sections
-
-4. **Are embeddings stable within chords?**
-   - Look at local homogeneity
-   - High homogeneity + low boundary clarity = may miss chord changes
-
-## 📈 Expected Results
-
-Based on music understanding research, we expect:
-- **Middle layers (L12-L18)** to perform best for harmonic structure
-- **Earlier layers** to focus on low-level audio features
-- **Later layers** to capture high-level song structure
-- **Trade-off** between homogeneity and boundary detection
-
-## 🔧 Dependencies
-
-Key packages:
-- `torch`, `torchaudio`: Deep learning and audio processing
-- `transformers`: MERT model loading
-- `librosa`: Audio feature extraction
-- `scipy`, `scikit-learn`: SSM computation and metrics
-- `google-cloud-bigquery`: Data export
-- `matplotlib`, `seaborn`: Visualization
-
-## 📝 Citation
-
-MERT model:
-```bibtex
-@inproceedings{li2023mert,
-  title={MERT: Acoustic Music Understanding Model with Large-Scale Self-supervised Training},
-  author={Li, Yizhi and Yuan, Ruibin and Zhang, Ge and Ma, Yinghao and Chen, Xingran and Yin, Hanzhi and Lin, Chenghua and Ragni, Anton and Benetos, Emmanouil and Gyenge, Norbert and others},
-  booktitle={ICASSP},
-  year={2024}
-}
-```
-
-## 🤝 Contributing
-
-This is a research project. Feel free to:
-- Experiment with different MERT layers
-- Try alternative similarity metrics
-- Analyze different music datasets
-- Extend to other MIR tasks
-
-## 📧 Contact
-
-For questions or collaboration: [Your contact info]
